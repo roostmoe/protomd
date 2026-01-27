@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
+	md "github.com/nao1215/markdown"
 	"github.com/roostmoe/protomd/internal/registry"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -57,6 +59,72 @@ func NewMethod(
 	m.HasHttp = m.checkHttp(proto)
 
 	return m
+}
+
+func (m Method) BuildSummary(b *md.Markdown) *md.Markdown {
+	b = b.H2(m.Name).PlainText(m.DocComment).PlainText("\n")
+
+	inputUrl := strings.ToLower(fmt.Sprintf("../#%s", m.Input.Name))
+	if m.Input.IsWellKnown {
+		inputUrl = m.Input.WellKnownUrl
+	}
+
+	outputUrl := strings.ToLower(fmt.Sprintf("../#%s", m.Output.Name))
+	if m.Output.IsWellKnown {
+		outputUrl = m.Output.WellKnownUrl
+	}
+
+	rpcLine := fmt.Sprintf(
+		`<pre><code>rpc %s (<a href="%s">%s</a>) returns (<a href="%s">%s</a>)</code></pre>`,
+		m.Name,
+		inputUrl,
+		m.Input.Name,
+		outputUrl,
+		m.Output.Name,
+	)
+
+	b = b.PlainTextf(`=== "gRPC"
+    %s`, rpcLine)
+
+	if m.RestMethod != "" && m.RestPath != "" {
+		b = b.PlainText(`=== "HTTP"`)
+
+		if m.RestMethod == "GET" {
+			b = m.buildHttpROSummary(b)
+		} else {
+			b = m.buildHttpRWSummary(b)
+		}
+	}
+
+	return b
+}
+
+func (m *Method) buildHttpROSummary(b *md.Markdown) *md.Markdown {
+	cb := fmt.Sprintf(
+		"<pre><code>%s</code></pre>",
+		fmt.Sprintf(`%s %s`, m.RestMethod, m.RestPath),
+	)
+
+	newCb := ""
+	for line := range strings.SplitSeq(cb, "\n") {
+		newCb = newCb + fmt.Sprintf("    %s\n", line)
+	}
+
+	return b.PlainText(newCb)
+}
+
+func (m *Method) buildHttpRWSummary(b *md.Markdown) *md.Markdown {
+	cb := fmt.Sprintf(
+		"<pre><code>%s</code></pre>",
+		fmt.Sprintf(`%s %s`, m.RestMethod, m.RestPath),
+	)
+
+	newCb := ""
+	for line := range strings.SplitSeq(cb, "\n") {
+		newCb = newCb + fmt.Sprintf("    %s\n", line)
+	}
+
+	return b.PlainText(newCb)
 }
 
 func (m *Method) checkHttp(proto *descriptorpb.MethodDescriptorProto) bool {

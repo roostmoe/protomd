@@ -1,17 +1,23 @@
 package mdgen
 
 import (
+	"fmt"
 	"io"
 
+	md "github.com/nao1215/markdown"
 	"github.com/roostmoe/protomd/internal/registry"
+	"github.com/roostmoe/protomd/internal/wellknown"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 type Message struct {
-	Name       string
-	DocComment string
-	Fields     []Field
-	Oneofs     []Oneof
+	Name         string
+	DocComment   string
+	Fields       []Field
+	Oneofs       []Oneof
+	IsWellKnown  bool // true if this is a well-known type
+	WellKnownUrl string
+	TypeName     string // fully-qualified type name (e.g., ".google.protobuf.Timestamp")
 }
 
 type Oneof struct {
@@ -30,6 +36,21 @@ func NewMessage(
 		Name:   proto.GetName(),
 		Fields: []Field{},
 		Oneofs: []Oneof{},
+	}
+
+	// construct the fully-qualified type name
+	if pkg, ok := reg.PackageByFile[fileName]; ok {
+		if pkg != "" {
+			m.TypeName = fmt.Sprintf(".%s.%s", pkg, proto.GetName())
+		} else {
+			m.TypeName = fmt.Sprintf(".%s", proto.GetName())
+		}
+
+		// check if this is a well-known type
+		m.IsWellKnown = wellknown.IsWellKnown(m.TypeName)
+		if m.IsWellKnown {
+			m.WellKnownUrl = wellknown.GetDocURL(m.TypeName)
+		}
 	}
 
 	// get comment from registry
@@ -85,6 +106,22 @@ func NewMessage(
 	}
 
 	return m
+}
+
+func (m Message) Build(b *md.Markdown) *md.Markdown {
+	var fieldRows [][]string
+	for _, f := range m.Fields {
+		fieldRows = append(fieldRows, f.BuildTableRow())
+	}
+
+	mdComment := tableEscape(m.DocComment)
+
+	return b.H2f("%v\n", md.Code(m.Name)).
+		PlainTextf("%v\n", mdComment).
+		Table(md.TableSet{
+			Header: []string{"Fields", ""},
+			Rows:   fieldRows,
+		})
 }
 
 func (m Message) Write(w io.Writer) error {

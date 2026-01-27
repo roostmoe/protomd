@@ -53,3 +53,10 @@ func pathKey(path []int32) string {
 func cleanComment(s string) string {
 	return strings.TrimSpace(s)
 }
+
+func tableEscape(s string) string {
+	ns := s
+	ns = strings.ReplaceAll(ns, "\n\n", "<br>")
+	ns = strings.ReplaceAll(ns, "\n", "&nbsp;")
+	return ns
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	md "github.com/nao1215/markdown"
 	"github.com/roostmoe/protomd/internal/registry"
 	"github.com/roostmoe/protomd/internal/wellknown"
 	"google.golang.org/genproto/googleapis/api/annotations"
@@ -69,7 +70,7 @@ func NewField(
 	}
 
 	if isRepeated := pb.GetLabel() == descriptorpb.FieldDescriptorProto_LABEL_REPEATED; isRepeated {
-		field.FieldType = fmt.Sprintf("[]%s", field.FieldType)
+		field.Repeated = true
 	}
 
 	// check for field behavior annotations
@@ -83,6 +84,56 @@ func NewField(
 	}
 
 	return field
+}
+
+func (f Field) BuildTableRow() []string {
+	row := []string{md.Code(f.Name)}
+
+	descBuilder := new(strings.Builder)
+	descBuilder.WriteString(f.getFieldTypeMd())
+
+	if len(f.Behaviours) > 0 {
+		descBuilder.WriteString(" _(")
+		for i, b := range f.Behaviours {
+			bMd := b
+			if i != len(f.Behaviours) - 1 {
+				bMd = fmt.Sprintf("%s, ", bMd)
+			}
+			descBuilder.WriteString(bMd)
+		}
+		descBuilder.WriteString(")_")
+	}
+	descBuilder.WriteString("<br><br>")
+
+	mdComment := tableEscape(f.DocComment)
+	descBuilder.WriteString(mdComment)
+
+	row = append(row, descBuilder.String())
+
+	return row
+}
+
+func (f Field) getFieldTypeMd() string {
+	typeStr := f.FieldType
+
+	if f.Repeated {
+		typeStr = fmt.Sprintf("[]%s", typeStr)
+	}
+
+	if f.LinkedType != "" {
+		url := ""
+
+		if f.IsWellKnown {
+			url = f.WellKnownURL
+		} else {
+			url = fmt.Sprintf("#message-%v", f.LinkedType)
+			url = strings.ReplaceAll(url, ".", "")
+		}
+
+		typeStr = md.Link(typeStr, strings.ToLower(url))
+	}
+
+	return md.Bold(typeStr)
 }
 
 func getFieldType(pb *descriptorpb.FieldDescriptorProto) string {

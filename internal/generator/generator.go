@@ -201,7 +201,7 @@ func (g *Generator) collectAndGenerate(originalPkg, outputPath string, files []*
 	nsIndexPath := fmt.Sprintf("/%s/index.md", outputPath)
 	namespace := mdgen.NewNamespace(originalPkg, mdServices, mdEnums, mdMessages)
 	var nsBuf bytes.Buffer
-	if err := namespace.Write(&nsBuf); err != nil {
+	if err := namespace.Build(&nsBuf); err != nil {
 		panic(fmt.Sprintf("failed to render namespace %s: %v", originalPkg, err))
 	}
 	g.addFile(nsIndexPath, nsBuf.String())
@@ -215,45 +215,11 @@ func (g *Generator) collectAndGenerate(originalPkg, outputPath string, files []*
 
 		// generate grpc service index
 		var buf bytes.Buffer
-		if err := mdSvc.WriteGrpc(&buf); err != nil {
+		if err := mdSvc.Build(&buf); err != nil {
 			panic(fmt.Sprintf("failed to render grpc service %s: %v", svcName, err))
 		}
-		svcIndexPath := fmt.Sprintf("/%s/rpc/%s/index.md", outputPath, svcName)
+		svcIndexPath := fmt.Sprintf("/%s/%s.md", outputPath, svcName)
 		g.addFile(svcIndexPath, buf.String())
-
-		// generate rest service index if needed
-		if mdSvc.HasHttp {
-			var restBuf bytes.Buffer
-			if err := mdSvc.WriteRest(&restBuf); err != nil {
-				panic(fmt.Sprintf("failed to render rest service %s: %v", svcName, err))
-			}
-			restIndexPath := fmt.Sprintf("/%s/rest/%s/index.md", outputPath, svcName)
-			g.addFile(restIndexPath, restBuf.String())
-		}
-
-		// generate method files
-		for i, method := range svc.GetMethod() {
-			methodPath := append(append([]int32{}, meta.path...), 2, int32(i))
-			mdMethod := mdgen.NewMethod(g.Registry, method, meta.fileName, methodPath)
-
-			// generate grpc method
-			var methodBuf bytes.Buffer
-			if err := mdMethod.WriteGrpc(&methodBuf); err != nil {
-				panic(fmt.Sprintf("failed to render grpc method %s.%s: %v", svcName, method.GetName(), err))
-			}
-			methodFilePath := fmt.Sprintf("/%s/rpc/%s/%s.md", outputPath, svcName, method.GetName())
-			g.addFile(methodFilePath, methodBuf.String())
-
-			// generate rest method if needed
-			if mdMethod.HasHttp {
-				var restMethodBuf bytes.Buffer
-				if err := mdMethod.WriteRest(&restMethodBuf); err != nil {
-					panic(fmt.Sprintf("failed to render rest method %s.%s: %v", svcName, method.GetName(), err))
-				}
-				restMethodPath := fmt.Sprintf("/%s/rest/%s/%s.md", outputPath, svcName, method.GetName())
-				g.addFile(restMethodPath, restMethodBuf.String())
-			}
-		}
 	}
 }
 

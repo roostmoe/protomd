@@ -1,6 +1,7 @@
 package mdgen
 
 import (
+	md "github.com/nao1215/markdown"
 	"github.com/roostmoe/protomd/internal/registry"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
@@ -8,6 +9,11 @@ import (
 type EnumValue struct {
 	Name       string
 	DocComment string
+}
+
+func (ev EnumValue) BuildTableRow() []string {
+	row := []string{md.Code(ev.Name), tableEscape(ev.DocComment)}
+	return row
 }
 
 type Enum struct {
@@ -53,4 +59,20 @@ func NewEnum(
 	}
 
 	return m
+}
+
+func (e Enum) Build(b *md.Markdown) *md.Markdown {
+	var enumRows [][]string
+	for _, o := range e.Options {
+		enumRows = append(enumRows, o.BuildTableRow())
+	}
+
+	mdComment := tableEscape(e.DocComment)
+
+	return b.H2f("%v\n", md.Code(e.Name)).
+		PlainTextf("%v\n", mdComment).
+		Table(md.TableSet{
+			Header: []string{"Options", ""},
+			Rows: enumRows,
+		})
 }

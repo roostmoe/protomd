@@ -37,7 +37,7 @@
 | Fields | |
 |---|---|
 {{ range $field := .Fields -}}
-|`{{ $field.Name }}`|**{{ if $field.IsWellKnown }}[{{ $field.FieldType }}]({{ $field.WellKnownURL }}){{ else if $field.LinkedType }}[{{ $field.FieldType }}]({{ namespaceMessageLink $field.LinkedType "." }}){{ else }}{{ $field.FieldType }}{{ end }}**<br><br>{{ $field.DocComment | replace "\n" "<br>" }}|
+|`{{ $field.Name }}`|{{ if $field.IsWellKnown }}[{{ $field.FieldType }}]({{ $field.WellKnownURL }}){{ else if $field.LinkedType }}[{{ $field.FieldType }}]({{ namespaceMessageLink $field.LinkedType "." }}){{ else }}{{ $field.FieldType }}{{ end }}{{ if (gt (len $field.Behaviours) 0) }} _({{ range $field.Behaviours }}{{ . }}{{ if , {{ end }})_{{ end }}<br><br>{{ $field.DocComment | replace "\n" "<br>" }}|
 {{ end -}}
 {{- range $oneOf := .Oneofs -}}
 |`{{ $oneOf.Name }}`|**oneOf**<br><br>{{ $oneOf.DocComment }}<br><hr/>Can be one of:<br><ul>{{ range $of := $oneOf.Fields }}<li>{{ $of.Name }} (<b>{{ if $of.IsWellKnown }}[{{ $of.FieldType }}]({{ $of.WellKnownURL }}){{ else if $of.LinkedType }}[{{ $of.FieldType }}]({{ namespaceMessageLink $of.LinkedType "." }}){{ else }}{{ $of.FieldType }}{{ end }}</b>)<br>{{ $of.DocComment | replace "\n" "<br>" }}</li><br>{{ end }}</ul>|

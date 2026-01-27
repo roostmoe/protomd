@@ -3,6 +3,7 @@ package mdgen
 import (
 	"io"
 
+	md "github.com/nao1215/markdown"
 	"github.com/roostmoe/protomd/internal/registry"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
@@ -44,6 +45,18 @@ func NewService(
 	}
 
 	return s
+}
+
+func (s Service) Build(w io.Writer) error {
+	builder := md.NewMarkdown(w).
+		H1(md.Code(s.Name)).
+		PlainTextf("%v\n\n", s.DocComment)
+
+	for _, m := range s.Methods {
+		builder = m.BuildSummary(builder)
+	}
+
+	return builder.Build()
 }
 
 func (s Service) WriteGrpc(w io.Writer) error {
