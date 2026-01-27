@@ -119,13 +119,15 @@ func (g *Generator) transformNamespace(pkg string) string {
 type symbolMetadata struct {
 	fileName string
 	path     []int32
-	proto    interface{} // *descriptorpb.ServiceDescriptorProto or *descriptorpb.DescriptorProto
+	parent   string      // parent name for nested symbols (e.g., "Message" for nested enum "Message.Status")
+	proto    interface{} // *descriptorpb.ServiceDescriptorProto or *descriptorpb.DescriptorProto or *descriptorpb.EnumDescriptorProto
 }
 
 // collectAndGenerate walks files and generates content using mdgen
 func (g *Generator) collectAndGenerate(originalPkg, outputPath string, files []*descriptorpb.FileDescriptorProto) {
 	services := make(map[string]symbolMetadata)
 	messages := make(map[string]symbolMetadata)
+	enums := make(map[string]symbolMetadata)
 
 	// walk files and collect symbols with their paths
 	for _, f := range files {
@@ -136,17 +138,43 @@ func (g *Generator) collectAndGenerate(originalPkg, outputPath string, files []*
 				services[s.GetName()] = symbolMetadata{
 					fileName: fileName,
 					path:     path,
+					parent:   "",
 					proto:    s,
 				}
 			},
 			OnMessage: func(path []int32, m *descriptorpb.DescriptorProto) {
+				// collect top-level messages
 				messages[m.GetName()] = symbolMetadata{
 					fileName: fileName,
 					path:     path,
+					parent:   "",
 					proto:    m,
+				}
+				// recursively collect nested messages and enums
+				g.collectNested(fileName, path, m.GetName(), messages, enums, m)
+			},
+			OnEnum: func(path []int32, e *descriptorpb.EnumDescriptorProto) {
+				// collect top-level enums
+				enums[e.GetName()] = symbolMetadata{
+					fileName: fileName,
+					path:     path,
+					parent:   "",
+					proto:    e,
 				}
 			},
 		})
+	}
+
+	// collect all enums for namespace index
+	var mdEnums []mdgen.Enum
+	for _, meta := range enums {
+		enum := meta.proto.(*descriptorpb.EnumDescriptorProto)
+		mdEnum := mdgen.NewEnum(g.Registry, enum, meta.fileName, meta.path)
+		// apply parent prefix if nested
+		if meta.parent != "" {
+			mdEnum.Name = meta.parent + "." + mdEnum.Name
+		}
+		mdEnums = append(mdEnums, mdEnum)
 	}
 
 	// collect all messages for namespace index
@@ -154,6 +182,10 @@ func (g *Generator) collectAndGenerate(originalPkg, outputPath string, files []*
 	for _, meta := range messages {
 		msg := meta.proto.(*descriptorpb.DescriptorProto)
 		mdMsg := mdgen.NewMessage(g.Registry, msg, meta.fileName, meta.path)
+		// apply parent prefix if nested
+		if meta.parent != "" {
+			mdMsg.Name = meta.parent + "." + mdMsg.Name
+		}
 		mdMessages = append(mdMessages, mdMsg)
 	}
 
@@ -165,9 +197,9 @@ func (g *Generator) collectAndGenerate(originalPkg, outputPath string, files []*
 		mdServices = append(mdServices, mdSvc)
 	}
 
-	// generate namespace index with all messages and services
+	// generate namespace index with all messages, enums and services
 	nsIndexPath := fmt.Sprintf("/%s/index.md", outputPath)
-	namespace := mdgen.NewNamespace(originalPkg, mdServices, mdMessages)
+	namespace := mdgen.NewNamespace(originalPkg, mdServices, mdEnums, mdMessages)
 	var nsBuf bytes.Buffer
 	if err := namespace.Write(&nsBuf); err != nil {
 		panic(fmt.Sprintf("failed to render namespace %s: %v", originalPkg, err))
@@ -222,6 +254,47 @@ func (g *Generator) collectAndGenerate(originalPkg, outputPath string, files []*
 				g.addFile(restMethodPath, restMethodBuf.String())
 			}
 		}
+	}
+}
+
+// collectNested recursively collects nested messages and enums from a message
+func (g *Generator) collectNested(
+	fileName string,
+	parentPath []int32,
+	parentName string,
+	messages map[string]symbolMetadata,
+	enums map[string]symbolMetadata,
+	msg *descriptorpb.DescriptorProto,
+) {
+	// collect nested enums
+	for i, enum := range msg.GetEnumType() {
+		// path: parentPath + [4 (enum_type field), i]
+		enumPath := append(append([]int32{}, parentPath...), 4, int32(i))
+		fullName := parentName + "." + enum.GetName()
+
+		enums[fullName] = symbolMetadata{
+			fileName: fileName,
+			path:     enumPath,
+			parent:   parentName,
+			proto:    enum,
+		}
+	}
+
+	// collect nested messages
+	for i, nested := range msg.GetNestedType() {
+		// path: parentPath + [3 (nested_type field), i]
+		nestedPath := append(append([]int32{}, parentPath...), 3, int32(i))
+		fullName := parentName + "." + nested.GetName()
+
+		messages[fullName] = symbolMetadata{
+			fileName: fileName,
+			path:     nestedPath,
+			parent:   parentName,
+			proto:    nested,
+		}
+
+		// recursively collect from this nested message
+		g.collectNested(fileName, nestedPath, fullName, messages, enums, nested)
 	}
 }
 

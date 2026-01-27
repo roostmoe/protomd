@@ -7,13 +7,15 @@ import (
 type Namespace struct {
 	Name     string
 	Services []Service
+	Enums    []Enum
 	Messages []Message
 }
 
-func NewNamespace(name string, services []Service, messages []Message) Namespace {
+func NewNamespace(name string, services []Service, enums []Enum, messages []Message) Namespace {
 	return Namespace{
 		Name:     name,
 		Services: services,
+		Enums:    enums,
 		Messages: messages,
 	}
 }

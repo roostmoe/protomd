@@ -3,16 +3,31 @@
 ## Index
 
 {{ range .Services -}}
-{{ if .HasHttp -}}
-- service [{{ .Name }} (REST)](./rest/{{ .Name }}/index.md)
+- Service [{{ .Name }} (gRPC)](./rpc/{{ .Name }}/index.md)
+{{- if .HasHttp }}
+- Service [{{ .Name }} (REST)](./rest/{{ .Name }}/index.md)
 {{ end -}}
-- service [{{ .Name }} (gRPC)](./rpc/{{ .Name }}/index.md)
+{{ end -}}
+{{ range .Enums -}}
+- Enum [{{ .Name }}](#{{ .Name }})
 {{ end -}}
 {{ range .Messages -}}
-- message [{{ .Name }}](#{{ .Name }})
+- Message [{{ .Name }}](#{{ .Name }})
 {{ end -}}
 
 ---
+
+{{ range .Enums }}
+<h2 id="{{ .Name }}">Enum <code>{{ .Name }}</code></h2>
+
+{{ .DocComment }}
+
+| Options | |
+|---|---|
+{{ range $option := .Options -}}
+|`{{ $option.Name }}`|{{ $option.DocComment | replace "\n" "<br>" }}|
+{{ end -}}
+{{- end }}
 
 {{ range .Messages }}
 <h2 id="{{ .Name }}">Message <code>{{ .Name }}</code></h2>
