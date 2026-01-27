@@ -7,7 +7,6 @@ protoc plugin that generates markdown documentation from protobuf files
 ### Build
 ```bash
 just build                    # builds to bin/protoc-gen-md
-go build -o bin/protoc-gen-md ./cmd/protoc-gen-md
 ```
 
 ### Test
