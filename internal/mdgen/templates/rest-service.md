@@ -5,5 +5,5 @@
 ## Methods
 
 {{ range .Service.Methods }}
-- [`{{ .Name }}`](./{{ .Name }}.md): {{ .DocComment }}
+- [`{{ .Name }}`](./{{ .Name }}.md): {{ .DocComment | replace "\n\n" "<br>" | replace "\n" " " }}
 {{ end }}

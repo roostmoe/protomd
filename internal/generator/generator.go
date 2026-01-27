@@ -46,7 +46,7 @@ func (g *Generator) parseParameters(params string) {
 	}
 
 	// parameters are comma-separated key=value pairs
-	for _, param := range strings.Split(params, ",") {
+	for param := range strings.SplitSeq(params, ",") {
 		kv := strings.SplitN(param, "=", 2)
 		if len(kv) != 2 {
 			continue
@@ -119,8 +119,8 @@ func (g *Generator) transformNamespace(pkg string) string {
 type symbolMetadata struct {
 	fileName string
 	path     []int32
-	parent   string      // parent name for nested symbols (e.g., "Message" for nested enum "Message.Status")
-	proto    interface{} // *descriptorpb.ServiceDescriptorProto or *descriptorpb.DescriptorProto or *descriptorpb.EnumDescriptorProto
+	parent   string // parent name for nested symbols (e.g., "Message" for nested enum "Message.Status")
+	proto    any    // *descriptorpb.ServiceDescriptorProto or *descriptorpb.DescriptorProto or *descriptorpb.EnumDescriptorProto
 }
 
 // collectAndGenerate walks files and generates content using mdgen

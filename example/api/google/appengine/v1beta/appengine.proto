@@ -1,0 +1,276 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package google.appengine.v1beta;
+
+import "google/appengine/v1beta/instance.proto";
+import "google/appengine/v1beta/service.proto";
+import "google/api/annotations.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/api/client.proto";
+
+option csharp_namespace = "Google.Cloud.AppEngine.V1Beta";
+option go_package = "google.golang.org/genproto/googleapis/appengine/v1beta;appengine";
+option java_multiple_files = true;
+option java_outer_classname = "AppengineProto";
+option java_package = "com.google.appengine.v1beta";
+option php_namespace = "Google\\Cloud\\AppEngine\\V1beta";
+option ruby_package = "Google::Cloud::AppEngine::V1beta";
+
+// Manages services of an application.
+service Services {
+  option (google.api.default_host) = "appengine.googleapis.com";
+  option (google.api.oauth_scopes) =
+      "https://www.googleapis.com/auth/appengine.admin,"
+      "https://www.googleapis.com/auth/cloud-platform,"
+      "https://www.googleapis.com/auth/cloud-platform.read-only";
+
+  // Lists all the services in the application.
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
+    option (google.api.http) = {
+      get: "/v1beta/{parent=apps/*}/services"
+    };
+  }
+
+  // Gets the current configuration of the specified service.
+  rpc GetService(GetServiceRequest) returns (Service) {
+    option (google.api.http) = {
+      get: "/v1beta/{name=apps/*/services/*}"
+    };
+  }
+
+  // Updates the configuration of the specified service.
+  rpc UpdateService(UpdateServiceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1beta/{name=apps/*/services/*}"
+      body: "service"
+    };
+    option (google.longrunning.operation_info) = {
+      response_type: "Service"
+      metadata_type: "OperationMetadataV1Beta"
+    };
+  }
+
+  // Deletes the specified service and all enclosed versions.
+  rpc DeleteService(DeleteServiceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      delete: "/v1beta/{name=apps/*/services/*}"
+    };
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "OperationMetadataV1Beta"
+    };
+  }
+}
+
+// Request message for `Services.ListServices`.
+message ListServicesRequest {
+  // Name of the parent Application resource. Example: `apps/myapp`.
+  string parent = 1;
+
+  // Maximum results to return per page.
+  int32 page_size = 2;
+
+  // Continuation token for fetching the next page of results.
+  string page_token = 3;
+}
+
+// Response message for `Services.ListServices`.
+message ListServicesResponse {
+  // The services belonging to the requested application.
+  repeated Service services = 1;
+
+  // Continuation token for fetching the next page of results.
+  string next_page_token = 2;
+}
+
+// Request message for `Services.GetService`.
+message GetServiceRequest {
+  // Name of the resource requested. Example: `apps/myapp/services/default`.
+  string name = 1;
+}
+
+// Request message for `Services.UpdateService`.
+message UpdateServiceRequest {
+  // Name of the resource to update. Example: `apps/myapp/services/default`.
+  string name = 1;
+
+  // A Service resource containing the updated service. Only fields set in the
+  // field mask will be updated.
+  Service service = 2;
+
+  // Standard field mask for the set of fields to be updated.
+  google.protobuf.FieldMask update_mask = 3;
+
+  // Set to `true` to gradually shift traffic to one or more versions that you
+  // specify. By default, traffic is shifted immediately.
+  // For gradual traffic migration, the target versions
+  // must be located within instances that are configured for both
+  // [warmup requests](https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps.services.versions#InboundServiceType)
+  // and
+  // [automatic scaling](https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps.services.versions#AutomaticScaling).
+  // You must specify the
+  // [`shardBy`](https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1beta/apps.services#ShardBy)
+  // field in the Service resource. Gradual traffic migration is not
+  // supported in the App Engine flexible environment. For examples, see
+  // [Migrating and Splitting Traffic](https://cloud.google.com/appengine/docs/admin-api/migrating-splitting-traffic).
+  bool migrate_traffic = 4;
+}
+
+// Request message for `Services.DeleteService`.
+message DeleteServiceRequest {
+  // Name of the resource requested. Example: `apps/myapp/services/default`.
+  string name = 1;
+}
+
+// Request message for `Instances.ListInstances`.
+message ListInstancesRequest {
+  // Name of the parent Version resource. Example:
+  // `apps/myapp/services/default/versions/v1`.
+  string parent = 1;
+
+  // Maximum results to return per page.
+  int32 page_size = 2;
+
+  // Continuation token for fetching the next page of results.
+  string page_token = 3;
+}
+
+// Response message for `Instances.ListInstances`.
+message ListInstancesResponse {
+  // The instances belonging to the requested version.
+  repeated Instance instances = 1;
+
+  // Continuation token for fetching the next page of results.
+  string next_page_token = 2;
+}
+
+// Request message for `Instances.GetInstance`.
+message GetInstanceRequest {
+  // Name of the resource requested. Example:
+  // `apps/myapp/services/default/versions/v1/instances/instance-1`.
+  string name = 1;
+}
+
+// Request message for `Instances.DeleteInstance`.
+message DeleteInstanceRequest {
+  // Name of the resource requested. Example:
+  // `apps/myapp/services/default/versions/v1/instances/instance-1`.
+  string name = 1;
+}
+
+// Request message for `Instances.DebugInstance`.
+message DebugInstanceRequest {
+  // Name of the resource requested. Example:
+  // `apps/myapp/services/default/versions/v1/instances/instance-1`.
+  string name = 1;
+
+  // Public SSH key to add to the instance. Examples:
+  //
+  // * `[USERNAME]:ssh-rsa [KEY_VALUE] [USERNAME]`
+  // * `[USERNAME]:ssh-rsa [KEY_VALUE] google-ssh {"userName":"[USERNAME]","expireOn":"[EXPIRE_TIME]"}`
+  //
+  // For more information, see
+  // [Adding and Removing SSH Keys](https://cloud.google.com/compute/docs/instances/adding-removing-ssh-keys).
+  string ssh_key = 2;
+}
+
+// Request message for `Firewall.ListIngressRules`.
+message ListIngressRulesRequest {
+  // Name of the Firewall collection to retrieve.
+  // Example: `apps/myapp/firewall/ingressRules`.
+  string parent = 1;
+
+  // Maximum results to return per page.
+  int32 page_size = 2;
+
+  // Continuation token for fetching the next page of results.
+  string page_token = 3;
+
+  // A valid IP Address. If set, only rules matching this address will be
+  // returned. The first returned rule will be the rule that fires on requests
+  // from this IP.
+  string matching_address = 4;
+}
+
+// Manages instances of a version.
+service Instances {
+  option (google.api.default_host) = "appengine.googleapis.com";
+  option (google.api.oauth_scopes) =
+      "https://www.googleapis.com/auth/appengine.admin,"
+      "https://www.googleapis.com/auth/cloud-platform,"
+      "https://www.googleapis.com/auth/cloud-platform.read-only";
+
+  // Lists the instances of a version.
+  //
+  // Tip: To aggregate details about instances over time, see the
+  // [Stackdriver Monitoring API](https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.timeSeries/list).
+  rpc ListInstances(ListInstancesRequest) returns (ListInstancesResponse) {
+    option (google.api.http) = {
+      get: "/v1beta/{parent=apps/*/services/*/versions/*}/instances"
+    };
+  }
+
+  // Gets instance information.
+  rpc GetInstance(GetInstanceRequest) returns (Instance) {
+    option (google.api.http) = {
+      get: "/v1beta/{name=apps/*/services/*/versions/*/instances/*}"
+    };
+  }
+
+  // Stops a running instance.
+  //
+  // The instance might be automatically recreated based on the scaling settings
+  // of the version. For more information, see "How Instances are Managed"
+  // ([standard environment](https://cloud.google.com/appengine/docs/standard/python/how-instances-are-managed) |
+  // [flexible environment](https://cloud.google.com/appengine/docs/flexible/python/how-instances-are-managed)).
+  //
+  // To ensure that instances are not re-created and avoid getting billed, you
+  // can stop all instances within the target version by changing the serving
+  // status of the version to `STOPPED` with the
+  // [`apps.services.versions.patch`](https://cloud.google.com/appengine/docs/admin-api/reference/rest/v1/apps.services.versions/patch)
+  // method.
+  rpc DeleteInstance(DeleteInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      delete: "/v1beta/{name=apps/*/services/*/versions/*/instances/*}"
+    };
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "OperationMetadataV1Beta"
+    };
+  }
+
+  // Enables debugging on a VM instance. This allows you to use the SSH
+  // command to connect to the virtual machine where the instance lives.
+  // While in "debug mode", the instance continues to serve live traffic.
+  // You should delete the instance when you are done debugging and then
+  // allow the system to take over and determine if another instance
+  // should be started.
+  //
+  // Only applicable for instances in App Engine flexible environment.
+  rpc DebugInstance(DebugInstanceRequest) returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1beta/{name=apps/*/services/*/versions/*/instances/*}:debug"
+      body: "*"
+    };
+    option (google.longrunning.operation_info) = {
+      response_type: "Instance"
+      metadata_type: "OperationMetadataV1Beta"
+    };
+  }
+}
