@@ -5,23 +5,24 @@ import (
 	"io"
 	"os"
 
-	"github.com/roostmoe/protomd/internal/generator"
+	"github.com/roostmoe/protomd/internal/protomd"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
 func main() {
-	// Phase 1: Read request from protoc
 	req, err := readRequest()
 	if err != nil {
 		fatal("failed to read request: %v", err)
 	}
 
-	// Phase 2: Build registry and generate files
-	gen := generator.New(req)
-	resp := gen.Generate()
+	p := protomd.New(req)
 
-	// Phase 3: Write response back to protoc
+	resp, err := p.Run()
+	if err != nil {
+		fatal("failed to build plugin response: %v", err)
+	}
+
 	if err := writeResponse(resp); err != nil {
 		fatal("failed to write response: %v", err)
 	}

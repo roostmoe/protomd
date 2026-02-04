@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/roostmoe/protomd/internal/models"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
@@ -11,103 +12,64 @@ import (
 type Registry struct {
 	FilesByName map[string]*descriptorpb.FileDescriptorProto
 
-	// fully-qualified proto names (leading dot), e.g. ".foo.v1.Bar"
-	Messages map[string]*descriptorpb.DescriptorProto
-	Enums    map[string]*descriptorpb.EnumDescriptorProto
-	Services map[string]*descriptorpb.ServiceDescriptorProto
-
-	// method index is optional but handy for crosslinks / lookups
-	// key: ".pkg.Service/Method"
-	Methods map[string]*descriptorpb.MethodDescriptorProto
+	// Packages indexed by package path
+	Packages map[string]models.Package
 
 	// comments indexed by source path, per file
 	// file name -> ("6,0,2,1" -> location)
-	Comments map[string]map[string]*descriptorpb.SourceCodeInfo_Location
-
-	// also useful for linking symbols back to files/packages
-	PackageByFile map[string]string
+	Comments map[string]models.CommentMap
 }
 
 func Build(req *pluginpb.CodeGeneratorRequest) *Registry {
 	r := &Registry{
 		FilesByName:   map[string]*descriptorpb.FileDescriptorProto{},
-		Messages:      map[string]*descriptorpb.DescriptorProto{},
-		Enums:         map[string]*descriptorpb.EnumDescriptorProto{},
-		Services:      map[string]*descriptorpb.ServiceDescriptorProto{},
-		Methods:       map[string]*descriptorpb.MethodDescriptorProto{},
-		Comments:      map[string]map[string]*descriptorpb.SourceCodeInfo_Location{},
-		PackageByFile: map[string]string{},
+		Packages:      map[string]models.Package{},
+		Comments:      map[string]models.CommentMap{},
 	}
 
 	for _, f := range req.GetProtoFile() {
 		name := f.GetName()
 		pkg := f.GetPackage()
 
+		pkgModel := &models.Package{
+			Name: pkg,
+			Messages: []models.Message{},
+			Services: []models.Service{},
+			Enums: 		[]models.Enum{},
+		}
+
+		if pkg, ok := r.Packages[pkg]; ok {
+			pkgModel = &pkg
+		}
+
 		r.FilesByName[name] = f
-		r.PackageByFile[name] = pkg
 		r.Comments[name] = indexComments(f)
 
-		// top-level + nested messages/enums
-		for _, m := range f.GetMessageType() {
-			indexMessage(r, pkg, "", m)
-		}
-		for _, e := range f.GetEnumType() {
-			full := fq(pkg, "", e.GetName())
-			r.Enums[full] = e
+		for idx, m := range f.GetMessageType() {
+			path := []int32{4, int32(idx)}
+			pkgModel.AddProtoMessage(m, r.Comments[name], path)
 		}
 
-		// services + methods
-		for _, s := range f.GetService() {
-			svcFull := fq(pkg, "", s.GetName())
-			r.Services[svcFull] = s
-
-			for _, m := range s.GetMethod() {
-				key := svcFull + "/" + m.GetName()
-				r.Methods[key] = m
-			}
+		for idx, e := range f.GetEnumType() {
+			path := []int32{4, int32(idx)}
+			pkgModel.AddProtoEnum(e, r.Comments[name], path)
 		}
+
+		for idx, s := range f.GetService() {
+			path := []int32{4, int32(idx)}
+			pkgModel.AddProtoService(s, r.Comments[name], path)
+		}
+
+		r.Packages[pkg] = *pkgModel
 	}
 
 	return r
 }
 
-func indexMessage(r *Registry, pkg, parent string, m *descriptorpb.DescriptorProto) {
-	msgFull := fq(pkg, parent, m.GetName())
-	r.Messages[msgFull] = m
-
-	// nested enums inside this message
-	nextParent := m.GetName()
-	if parent != "" {
-		nextParent = parent + "." + m.GetName()
-	}
-
-	for _, e := range m.GetEnumType() {
-		eFull := fq(pkg, nextParent, e.GetName())
-		r.Enums[eFull] = e
-	}
-
-	// nested messages (recursively)
-	for _, nested := range m.GetNestedType() {
-		indexMessage(r, pkg, nextParent, nested)
-	}
-}
-
-// fq builds fully-qualified proto names with the leading dot.
-// parent is the containing message chain like "Outer.Inner".
-func fq(pkg, parent, name string) string {
-	// ".<pkg>.<parent>.<name>" (skipping empties)
-	full := "." + pkg
-	if parent != "" {
-		full += "." + parent
-	}
-	full += "." + name
-	return full
-}
-
 // ---- comments
 
-func indexComments(f *descriptorpb.FileDescriptorProto) map[string]*descriptorpb.SourceCodeInfo_Location {
-	out := map[string]*descriptorpb.SourceCodeInfo_Location{}
+func indexComments(f *descriptorpb.FileDescriptorProto) models.CommentMap {
+	out := models.CommentMap{}
 	sci := f.GetSourceCodeInfo()
 	if sci == nil {
 		return out
@@ -127,7 +89,7 @@ func pathKey(path []int32) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(fmt.Sprint(p))
+		fmt.Fprint(&b, p)
 	}
 	return b.String()
 }

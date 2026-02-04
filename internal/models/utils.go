@@ -1,4 +1,4 @@
-package mdgen
+package models
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
+
+type CommentMap map[string]*descriptorpb.SourceCodeInfo_Location
 
 func getExtension[A any](opts proto.Message, e protoreflect.ExtensionType) (*A, bool) {
 	if !proto.HasExtension(opts, e) {
@@ -34,22 +36,31 @@ func getMethodExtension[A any](opts *descriptorpb.MethodOptions, e protoreflect.
 	return getExtension[A](opts, e)
 }
 
-// pathKey converts a source path to a lookup key for the comments map
 func pathKey(path []int32) string {
 	if len(path) == 0 {
 		return ""
 	}
+
 	var b strings.Builder
 	for i, p := range path {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(fmt.Sprint(p))
+
+		fmt.Fprint(&b, p)
 	}
+
 	return b.String()
 }
 
-// cleanComment trims whitespace and normalizes comment text
+func getComment(comments CommentMap, path []int32) string {
+	loc, ok := comments[pathKey(path)]
+	if !ok {
+		return ""
+	}
+	return cleanComment(loc.GetLeadingComments())
+}
+
 func cleanComment(s string) string {
 	return strings.TrimSpace(s)
 }
